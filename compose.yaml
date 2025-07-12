@@ -1,0 +1,7 @@
+﻿services:
+  core-auth:
+    image: core-auth
+    build:
+      context: .
+      dockerfile: Dockerfile
+
