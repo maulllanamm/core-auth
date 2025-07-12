@@ -64,3 +64,6 @@ backend/storage/framework/cache/repository-cache-keys.json
 #appsettings
 appsettings.json
 appsettings.*.json
+
+#env
+.env
