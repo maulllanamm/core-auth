@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace core_auth.Model.DTO;
 
-public class RegisterRequestDTO
+public class RegisterRequest
 {
     [Required(ErrorMessage = "Email is required.")]
     [EmailAddress(ErrorMessage = "Invalid email format.")]

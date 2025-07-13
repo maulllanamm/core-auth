@@ -21,7 +21,7 @@ public class AuthController : ControllerBase
     /// Register a new user.
     /// </summary>
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequestDTO request)
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         if (!ModelState.IsValid)
         {

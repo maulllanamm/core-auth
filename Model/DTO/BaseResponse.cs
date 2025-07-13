@@ -1,6 +1,6 @@
 namespace core_auth.Model.DTO;
 
-public class RegisterResponseDTO
+public class BaseResponse
 {
     public bool IsSuccess { get; set; }
     public string? Message { get; set; }

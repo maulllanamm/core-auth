@@ -14,7 +14,7 @@ public class AuthService : IAuthService
         _userManager = userManager;
     }
     
-    public async Task<RegisterResponseDTO> RegisterUserAsync(RegisterRequestDTO request)
+    public async Task<RegisterResponse> RegisterUserAsync(RegisterRequest request)
     {
         var user = new ApplicationUser
         {
@@ -29,14 +29,14 @@ public class AuthService : IAuthService
         if (result.Succeeded)
         {
             
-            return new RegisterResponseDTO
+            return new RegisterResponse
             {
                 IsSuccess = true,
                 Message = "User registered successfully."
             };
         }
 
-        return new RegisterResponseDTO
+        return new RegisterResponse
         {
             IsSuccess = false,
             Errors = result.Errors.Select(e => e.Description).ToList()
