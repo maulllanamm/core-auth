@@ -1,6 +1,7 @@
 ﻿services:
   core-auth:
     image: core-auth
+    container_name: core-auth
     build:
       context: .
       dockerfile: Dockerfile
@@ -15,7 +16,7 @@
     ports:
       - "1433:1433"
     environment:
-      SA_PASSWORD: "${SA_PASSWORD}"
+      MSSQL_SA_PASSWORD: "${SA_PASSWORD}"
       ACCEPT_EULA: "Y"
     volumes:
       - sqlserver_data:/var/opt/mssql

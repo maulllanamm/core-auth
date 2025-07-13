@@ -1,5 +1,6 @@
 using core_auth.Model;
 using core_auth.Model.DTO;
+using core_auth.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,15 +10,13 @@ namespace core_auth.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly UserManager<ApplicationUser> _userManager;
-    private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly IAuthService _authService;
 
-    public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
+    public AuthController(IAuthService authService)
     {
-        _userManager = userManager;
-        _signInManager = signInManager;
+        _authService = authService;
     }
-    
+
     /// <summary>
     /// Register a new user.
     /// </summary>
@@ -29,22 +28,14 @@ public class AuthController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var user = new ApplicationUser
-        {
-            UserName = request.Email, 
-            Email = request.Email,
-            CreatedDate = DateTimeOffset.UtcNow,
-            EmailConfirmed = false 
-        };
+        var response = await _authService.RegisterUserAsync(request);
 
-        var result = await _userManager.CreateAsync(user, request.Password);
-
-        if (result.Succeeded)
+        if (response.IsSuccess)
         {
-            return Ok(new { Message = "User registered successfully. Please confirm your email." });
+            return Ok(response);
         }
 
-        return BadRequest(new { Errors = result.Errors.Select(e => e.Description) });
+        return BadRequest(response);
     }
 
 }
