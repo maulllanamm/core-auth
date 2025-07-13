@@ -11,6 +11,7 @@ public class CoreAuthDbContext : IdentityDbContext<ApplicationUser>
     {
     }
     
+    public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -19,6 +20,17 @@ public class CoreAuthDbContext : IdentityDbContext<ApplicationUser>
         
         builder.Entity<ApplicationUser>()
             .Property(u => u.CreatedDate)
+            .HasDefaultValueSql("GETUTCDATE()"); 
+        
+        builder.Entity<RefreshToken>()
+            .HasOne(rt => rt.User) 
+            .WithMany()
+            .HasForeignKey(rt => rt.UserId) 
+            .IsRequired() 
+            .OnDelete(DeleteBehavior.Cascade); 
+
+        builder.Entity<RefreshToken>()
+            .Property(rt => rt.Created)
             .HasDefaultValueSql("GETUTCDATE()"); 
     }
     

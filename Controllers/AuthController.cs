@@ -37,5 +37,28 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Login user and return JWT.
+    /// </summary>
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+
+        var response = await _authService.LoginUserAsync(request, ipAddress);
+
+        if (response.IsSuccess)
+        {
+            return Ok(response);
+        }
+
+        return Unauthorized(response.Message ?? "Login failed.");
+    }
 
 }
