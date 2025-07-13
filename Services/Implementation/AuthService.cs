@@ -8,13 +8,14 @@ namespace core_auth.Services.Implementation;
 public class AuthService : IAuthService
 {
     private readonly UserManager<ApplicationUser> _userManager;
-
-    public AuthService(UserManager<ApplicationUser> userManager)
+    private readonly IEmailService _emailService;
+    public AuthService(UserManager<ApplicationUser> userManager, IEmailService emailService)
     {
         _userManager = userManager;
+        _emailService = emailService;
     }
     
-    public async Task<RegisterResponse> RegisterUserAsync(RegisterRequest request)
+    public async Task<RegisterResponse> RegisterUserAsync(RegisterRequest request, string scheme, string host)
     {
         var user = new ApplicationUser
         {
@@ -28,7 +29,27 @@ public class AuthService : IAuthService
 
         if (result.Succeeded)
         {
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var confirmationLink = $"{scheme}://{host}/api/Auth/ConfirmEmail?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+
+            // Panggil IEmailSender untuk mengirim email DI SINI (di dalam service)
+            var emailSendResult = await _emailService.SendEmailAsync(new EmailRequest
+            {
+                ToEmail = user.Email!,
+                Subject = "Confirm Your Email Address",
+                Body = $"Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a>",
+                IsHtml = true
+            });
             
+            if (!emailSendResult.IsSuccess)
+            {
+                return new RegisterResponse
+                {
+                    IsSuccess = true,
+                    Message = "User registered. Failed to send confirmation email. Please request another one later.",
+                    Errors = emailSendResult.Errors 
+                };
+            }
             return new RegisterResponse
             {
                 IsSuccess = true,

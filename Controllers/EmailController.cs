@@ -8,9 +8,9 @@ namespace core_auth.Controllers;
 [Route("api/email")]
 public class EmailController: ControllerBase
 {
-    private readonly IEmailSenderService _emailService;
+    private readonly IEmailService _emailService;
 
-    public EmailController(IEmailSenderService emailService)
+    public EmailController(IEmailService emailService)
     {
         _emailService = emailService;
     }

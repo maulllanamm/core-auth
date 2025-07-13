@@ -5,11 +5,11 @@ using core_auth.Services.Interfaces;
 
 namespace core_auth.Services.Implementation;
 
-public class EmailSenderService: IEmailSenderService
+public class EmailService: IEmailService
 {
     private readonly IConfiguration _configuration;
 
-    public EmailSenderService(IConfiguration configuration)
+    public EmailService(IConfiguration configuration)
     {
         _configuration = configuration;
     }

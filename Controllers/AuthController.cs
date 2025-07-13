@@ -28,7 +28,7 @@ public class AuthController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        var response = await _authService.RegisterUserAsync(request);
+        var response = await _authService.RegisterUserAsync(request, HttpContext.Request.Scheme, HttpContext.Request.Host.ToUriComponent());
 
         if (response.IsSuccess)
         {
