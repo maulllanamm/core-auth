@@ -30,8 +30,12 @@ public class EmailSenderService: IEmailSenderService
             using (var client = new SmtpClient(smtpHost, smtpPort))
             {
                 client.EnableSsl = smtpEnableSsl;
-                client.UseDefaultCredentials = false; 
-                client.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+                client.UseDefaultCredentials = false;
+                if (!string.IsNullOrEmpty(smtpUsername) && !string.IsNullOrEmpty(smtpPassword))
+                {
+                    client.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+                }
+
 
                 var mailMessage = new MailMessage
                 {

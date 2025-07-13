@@ -20,7 +20,7 @@ public class EmailController: ControllerBase
     {
         var result = await _emailService.SendEmailAsync(new EmailRequest
         {
-            ToEmail = "tujuan@email.com",
+            ToEmail = "maulllanamuhammad@gmail.com",
             Subject = "Test Email",
             Body = "<b>Ini body email</b>",
             IsHtml = true
