@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace core_auth.Data;
 
-public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+public class CoreAuthDbContext : IdentityDbContext<ApplicationUser>
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    public CoreAuthDbContext(DbContextOptions<CoreAuthDbContext> options)
         : base(options)
     {
     }
