@@ -43,7 +43,7 @@ public class AuthService : IAuthService
         if (result.Succeeded)
         {
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var confirmationLink = $"{scheme}://{host}/api/Auth/ConfirmEmail?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+            var confirmationLink = $"{scheme}://{host}/api/auth/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
 
             var emailSendResult = await _emailService.SendEmailAsync(new EmailRequest
             {
@@ -80,7 +80,6 @@ public class AuthService : IAuthService
         {
             return ApiResponseFactory.Fail<object>($"User with ID '{userId}' not found.");
         }
-
         var result = await _userManager.ConfirmEmailAsync(user, token);
 
         if (result.Succeeded)
