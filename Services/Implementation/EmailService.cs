@@ -14,7 +14,7 @@ public class EmailService: IEmailService
         _configuration = configuration;
     }
     
-    public async Task<BaseResponse> SendEmailAsync(EmailRequest request)
+    public async Task<ApiResponse<object>> SendEmailAsync(EmailRequest request)
     {
         try
         {
@@ -49,18 +49,25 @@ public class EmailService: IEmailService
                 await client.SendMailAsync(mailMessage);
             }
 
-            Console.WriteLine($"Email sent successfully to {request.ToEmail}");
-            return new BaseResponse { IsSuccess = true, Message = "Email sent successfully." };
+            return ApiResponseFactory.Success<object>(null, "Email sent successfully.");
         }
         catch (SmtpException smtpEx)
         {
             Console.Error.WriteLine($"SMTP Error sending email to {request.ToEmail}: {smtpEx.StatusCode} - {smtpEx.Message}");
-            return new BaseResponse { IsSuccess = false, Message = $"Failed to send email: SMTP error {smtpEx.StatusCode}. Please check logs." };
+            return ApiResponseFactory.Fail<object>(
+                $"Failed to send email: SMTP error {smtpEx.StatusCode}.",
+                new List<string> { smtpEx.Message }
+            );
+
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Error sending email to {request.ToEmail}: {ex.Message}");
-            return new BaseResponse { IsSuccess = false, Message = $"Failed to send email: {ex.Message}" };
+            return ApiResponseFactory.Fail<object>(
+                "Failed to send email.",
+                new List<string> { ex.Message }
+            );
+
         }
     }
 }

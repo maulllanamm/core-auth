@@ -4,5 +4,5 @@ namespace core_auth.Services.Interfaces;
 
 public interface IEmailService
 {
-    Task<BaseResponse> SendEmailAsync(EmailRequest request);
+    Task<ApiResponse<object>> SendEmailAsync(EmailRequest request);
 }

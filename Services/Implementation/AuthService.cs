@@ -20,7 +20,7 @@ public class AuthService : IAuthService
         _signInManager = signInManager;
     }
     
-    public async Task<RegisterResponse> RegisterUserAsync(RegisterRequest request, string scheme, string host)
+    public async Task<ApiResponse<object>> RegisterUserAsync(RegisterRequest request, string scheme, string host)
     {
         var user = new ApplicationUser
         {
@@ -37,7 +37,6 @@ public class AuthService : IAuthService
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             var confirmationLink = $"{scheme}://{host}/api/Auth/ConfirmEmail?userId={user.Id}&token={Uri.EscapeDataString(token)}";
 
-            // Panggil IEmailSender untuk mengirim email DI SINI (di dalam service)
             var emailSendResult = await _emailService.SendEmailAsync(new EmailRequest
             {
                 ToEmail = user.Email!,
@@ -46,40 +45,32 @@ public class AuthService : IAuthService
                 IsHtml = true
             });
             
-            if (!emailSendResult.IsSuccess)
+            if (!emailSendResult.Success)
             {
-                return new RegisterResponse
-                {
-                    IsSuccess = true,
-                    Message = "User registered. Failed to send confirmation email. Please request another one later.",
-                    Errors = emailSendResult.Errors 
-                };
+                return ApiResponseFactory.SuccessWithWarning<object>(
+                    null,
+                    "User registered. Failed to send confirmation email. Please request another one later.",
+                    emailSendResult.Errors
+                );
             }
-            return new RegisterResponse
-            {
-                IsSuccess = true,
-                Message = "User registered successfully."
-            };
+            return ApiResponseFactory.Success<object>(null, "User registered successfully.");
         }
 
-        return new RegisterResponse
-        {
-            IsSuccess = false,
-            Errors = result.Errors.Select(e => e.Description).ToList()
-        };
+        var errors = result.Errors.Select(e => e.Description).ToList();
+        return ApiResponseFactory.Fail<object>("User registration failed.", errors);
     }
     
-    public async Task<LoginResponse> LoginUserAsync(LoginRequest request, string ipAddress)
+    public async Task<ApiResponse<object>> LoginUserAsync(LoginRequest request, string ipAddress)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null)
         {
-            return new LoginResponse { IsSuccess = false, Message = "Invalid login credentials." };
+            return ApiResponseFactory.Fail<object>("Invalid login credentials.");
         }
 
         if (!user.EmailConfirmed)
         {
-            return new LoginResponse { IsSuccess = false, Message = "Your email has not been confirmed yet. Please check your inbox." };
+            return ApiResponseFactory.Fail<object>("Your email has not been confirmed yet. Please check your inbox.");
         }
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
@@ -89,18 +80,21 @@ public class AuthService : IAuthService
             user.LastLoginDate = DateTimeOffset.UtcNow;
             await _userManager.UpdateAsync(user);
 
-            return new LoginResponse
+
+            var loginResult = new LoginResponse
             {
-                IsSuccess = true,
-                Message = "Login successful.",
+                LastLoginDate = user.LastLoginDate
             };
+
+            return ApiResponseFactory.Success<object>(loginResult, "Login successful.");
         }
 
         if (result.IsLockedOut)
         {
-            return new LoginResponse { IsSuccess = false, Message = "Account locked out due to multiple failed login attempts. Please try again later." };
+            return ApiResponseFactory.Fail<object>("Account locked out due to multiple failed login attempts. Please try again later.");
         }
 
-        return new LoginResponse { IsSuccess = false, Message = "Invalid login credentials." };
+        return ApiResponseFactory.Fail<object>("Invalid login credentials.");
     }
+
 }

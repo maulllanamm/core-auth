@@ -23,20 +23,20 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
+        var response = await _authService.RegisterUserAsync(
+            request,
+            HttpContext.Request.Scheme,
+            HttpContext.Request.Host.ToUriComponent()
+        );
 
-        var response = await _authService.RegisterUserAsync(request, HttpContext.Request.Scheme, HttpContext.Request.Host.ToUriComponent());
-
-        if (response.IsSuccess)
+        if (response.Success)
         {
             return Ok(response);
         }
 
         return BadRequest(response);
     }
+
     
     /// <summary>
     /// Login user and return JWT.
@@ -44,21 +44,15 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
-
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
 
         var response = await _authService.LoginUserAsync(request, ipAddress);
 
-        if (response.IsSuccess)
+        if (response.Success)
         {
             return Ok(response);
         }
-
-        return Unauthorized(response.Message ?? "Login failed.");
+        return Unauthorized(response);
     }
 
 }
