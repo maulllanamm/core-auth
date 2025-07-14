@@ -36,6 +36,22 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Confirms user email using a token.
+    /// </summary>
+    [HttpGet("confirm-email")]
+    public async Task<IActionResult> ConfirmEmail([FromQuery] string userId, [FromQuery] string token)
+    {
+        var response = await _authService.ConfirmEmailAsync(userId, token);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
 
     
     /// <summary>

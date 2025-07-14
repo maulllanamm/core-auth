@@ -68,6 +68,29 @@ public class AuthService : IAuthService
         return ApiResponseFactory.Fail<object>("User registration failed.", errors);
     }
     
+    public async Task<ApiResponse<object>> ConfirmEmailAsync(string userId, string token)
+    {
+        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
+        {
+            return ApiResponseFactory.Fail<object>("Invalid email confirmation link.");
+        }
+
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return ApiResponseFactory.Fail<object>($"User with ID '{userId}' not found.");
+        }
+
+        var result = await _userManager.ConfirmEmailAsync(user, token);
+
+        if (result.Succeeded)
+        {
+            return ApiResponseFactory.Success<object>(null, "Email confirmed successfully. You can now login.");
+        }
+
+        return ApiResponseFactory.Fail<object>("Error confirming your email.", result.Errors.Select(e => e.Description).ToList());
+    }
+    
     public async Task<ApiResponse<object>> LoginUserAsync(LoginRequest request, string ipAddress)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
