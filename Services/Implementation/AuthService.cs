@@ -39,35 +39,40 @@ public class AuthService : IAuthService
             EmailConfirmed = false
         };
 
-        var result = await _userManager.CreateAsync(user, request.Password);
-
-        if (result.Succeeded)
+        var creationResult = await _userManager.CreateAsync(user, request.Password);
+        if (!creationResult.Succeeded)
         {
-            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var confirmationLink = $"{scheme}://{host}/api/auth/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
-
-            var emailSendResult = await _emailService.SendEmailAsync(new EmailRequest
-            {
-                ToEmail = user.Email!,
-                Subject = "Confirm Your Email Address",
-                Body = $"Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a>",
-                IsHtml = true
-            });
-            
-            if (!emailSendResult.Success)
-            {
-                return ApiResponseFactory.SuccessWithWarning<object>(
-                    null,
-                    "User registered. Failed to send confirmation email. Please request another one later.",
-                    emailSendResult.Errors
-                );
-            }
-            return ApiResponseFactory.Success<object>(null, "User registered successfully.");
+            var errors = creationResult.Errors.Select(e => e.Description).ToList();
+            return ApiResponseFactory.Fail<object>("User registration failed.", errors);
         }
 
-        var errors = result.Errors.Select(e => e.Description).ToList();
-        return ApiResponseFactory.Fail<object>("User registration failed.", errors);
+        var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        var confirmationLink = $"{scheme}://{host}/api/auth/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+
+        var emailResult = await _emailService.SendEmailAsync(new EmailRequest
+        {
+            ToEmail = user.Email!,
+            Subject = "Confirm Your Email Address",
+            Body = $"Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a>",
+            IsHtml = true
+        });
+
+        if (!emailResult.Success)
+        {
+            return ApiResponseFactory.SuccessWithWarning<object>(
+                null,
+                "User registered. Failed to send confirmation email. Please request another one later.",
+                emailResult.Errors
+            );
+        }
+
+        return ApiResponseFactory.Success<object>(
+            null,
+            "Registration successful! Please verify your email address to complete the process."
+        );
+
     }
+
     
     public async Task<ApiResponse<object>> ConfirmEmailAsync(Guid userId, string token)
     {
@@ -91,53 +96,44 @@ public class AuthService : IAuthService
         return ApiResponseFactory.Fail<object>("Error confirming your email.", result.Errors.Select(e => e.Description).ToList());
     }
     
-    public async Task<ApiResponse<object>> LoginUserAsync(LoginRequest request, string ipAddress)
+    public async Task<ApiResponse<LoginResponse>> LoginUserAsync(LoginRequest request, string ipAddress)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null)
-        {
-            return ApiResponseFactory.Fail<object>("Invalid login credentials.");
-        }
+            return ApiResponseFactory.Fail<LoginResponse>("Invalid login credentials.");
 
         if (!user.EmailConfirmed)
-        {
-            return ApiResponseFactory.Fail<object>("Your email has not been confirmed yet. Please check your inbox.");
-        }
+            return ApiResponseFactory.Fail<LoginResponse>("Your email has not been confirmed yet. Please check your inbox.");
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
-
-        if (result.Succeeded)
+        if (!result.Succeeded)
         {
-            user.LastLoginDate = DateTimeOffset.UtcNow;
-            await _userManager.UpdateAsync(user);
-            await RevokeOldRefreshTokensForUser(user.Id);
-
-            var accessToken = await GenerateJwtTokenAsync(user);
-            var refreshToken = await GenerateAndSaveRefreshTokenAsync(user.Id, ipAddress);
-            
-            var loginResult = new LoginResponse
-            {
-                AccessToken = accessToken,
-                RefreshToken = refreshToken.Token,
-                LastLoginDate = user.LastLoginDate
-            };
-
-            return ApiResponseFactory.Success<object>(loginResult, "Login successful.");
+            if (result.IsLockedOut)
+                return ApiResponseFactory.Fail<LoginResponse>("Account locked out due to multiple failed login attempts.");
+            if (result.IsNotAllowed)
+                return ApiResponseFactory.Fail<LoginResponse>("Login not allowed. Please confirm your email or contact support.");
+            if (result.RequiresTwoFactor)
+                return ApiResponseFactory.Fail<LoginResponse>("Two-factor authentication required.");
+        
+            return ApiResponseFactory.Fail<LoginResponse>("Invalid login credentials.");
         }
 
-        if (result.IsLockedOut)
+        user.LastLoginDate = DateTimeOffset.UtcNow;
+        await _userManager.UpdateAsync(user);
+
+        await RevokeOldRefreshTokensForUser(user.Id);
+
+        var accessToken = await GenerateJwtTokenAsync(user);
+        var refreshToken = await GenerateAndSaveRefreshTokenAsync(user.Id, ipAddress);
+
+        var response = new LoginResponse
         {
-            return ApiResponseFactory.Fail<object>("Account locked out due to multiple failed login attempts. Please try again later.");
-        }
-        if (result.IsNotAllowed)
-        {
-            return ApiResponseFactory.Fail<object>("Login not allowed. Please confirm your email/phone or contact support.");
-        }
-        if (result.RequiresTwoFactor)
-        {
-            return ApiResponseFactory.Fail<object>("Two-factor authentication required. Please proceed with 2FA verification.");
-        }
-        return ApiResponseFactory.Fail<object>("Invalid login credentials.");
+            AccessToken = accessToken,
+            RefreshToken = refreshToken.Token,
+            LastLoginDate = user.LastLoginDate
+        };
+
+        return ApiResponseFactory.Success(response, "Login successful.");
     }
     
     public async Task<string> GenerateJwtTokenAsync(ApplicationUser user)

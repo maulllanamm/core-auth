@@ -6,7 +6,7 @@ namespace core_auth.Services.Interfaces;
 public interface IAuthService
 {
     Task<ApiResponse<object>> RegisterUserAsync(RegisterRequest request, string scheme, string host);
-    Task<ApiResponse<object>>  LoginUserAsync(LoginRequest request, string ipAddress);
+    Task<ApiResponse<LoginResponse>>  LoginUserAsync(LoginRequest request, string ipAddress);
     Task<ApiResponse<object>> ConfirmEmailAsync(Guid userId, string token);
     Task<string> GenerateJwtTokenAsync(ApplicationUser user);
     Task<ApiResponse<LoginResponse>> RefreshTokenAsync(string token, string ipAddress);
