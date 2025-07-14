@@ -2,6 +2,7 @@ using core_auth.Data;
 using core_auth.Model;
 using core_auth.Services.Implementation;
 using core_auth.Services.Interfaces;
+using core_auth.Settings;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,9 @@ var connectionString = builder.Configuration
 
 builder.Services.AddDbContext<CoreAuthDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+builder.Services.Configure<JwtSettings>(
+    builder.Configuration.GetSection("Jwt"));
 
 // config core identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>

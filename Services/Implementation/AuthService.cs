@@ -1,8 +1,14 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using core_auth.Data;
 using core_auth.Model;
 using core_auth.Model.DTO;
 using core_auth.Services.Interfaces;
+using core_auth.Settings;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 
 namespace core_auth.Services.Implementation;
 
@@ -12,12 +18,14 @@ public class AuthService : IAuthService
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IEmailService _emailService;
     private readonly CoreAuthDbContext _dbContext;
-    public AuthService(UserManager<ApplicationUser> userManager, IEmailService emailService, CoreAuthDbContext dbContext, SignInManager<ApplicationUser> signInManager)
+    private readonly JwtSettings _jwtSettings;
+    public AuthService(UserManager<ApplicationUser> userManager, IEmailService emailService, CoreAuthDbContext dbContext, SignInManager<ApplicationUser> signInManager, IOptions<JwtSettings> jwtSettings)
     {
         _userManager = userManager;
         _emailService = emailService;
         _dbContext = dbContext;
         _signInManager = signInManager;
+        _jwtSettings = jwtSettings.Value;
     }
     
     public async Task<ApiResponse<object>> RegisterUserAsync(RegisterRequest request, string scheme, string host)
@@ -80,9 +88,11 @@ public class AuthService : IAuthService
             user.LastLoginDate = DateTimeOffset.UtcNow;
             await _userManager.UpdateAsync(user);
 
+            var jwtToken = await GenerateJwtTokenAsync(user);
 
             var loginResult = new LoginResponse
             {
+                AccessToken = jwtToken,
                 LastLoginDate = user.LastLoginDate
             };
 
@@ -93,8 +103,47 @@ public class AuthService : IAuthService
         {
             return ApiResponseFactory.Fail<object>("Account locked out due to multiple failed login attempts. Please try again later.");
         }
-
+        if (result.IsNotAllowed)
+        {
+            return ApiResponseFactory.Fail<object>("Login not allowed. Please confirm your email/phone or contact support.");
+        }
+        if (result.RequiresTwoFactor)
+        {
+            return ApiResponseFactory.Fail<object>("Two-factor authentication required. Please proceed with 2FA verification.");
+        }
         return ApiResponseFactory.Fail<object>("Invalid login credentials.");
+    }
+    
+    public async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""), 
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(ClaimTypes.Name, user.UserName ?? user.Email ?? "") 
+        };
+
+        var roles = await _userManager.GetRolesAsync(user);
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var expires = DateTime.Now.AddMinutes(_jwtSettings.ExpireMinutes);
+
+        var token = new JwtSecurityToken(
+            issuer: _jwtSettings.Issuer,
+            audience: _jwtSettings.Audience,
+            claims: claims,
+            expires: expires,
+            signingCredentials: creds
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
 }
