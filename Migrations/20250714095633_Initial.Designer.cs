@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using core_auth.Data;
 
@@ -11,9 +12,11 @@ using core_auth.Data;
 namespace core_auth.Migrations
 {
     [DbContext(typeof(CoreAuthDbContext))]
-    partial class CoreAuthDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250714095633_Initial")]
+    partial class Initial
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
