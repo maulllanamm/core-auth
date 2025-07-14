@@ -1,10 +1,11 @@
 using core_auth.Model;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace core_auth.Data;
 
-public class CoreAuthDbContext : IdentityDbContext<ApplicationUser>
+public class CoreAuthDbContext : IdentityDbContext<ApplicationUser,  IdentityRole<Guid>, Guid>
 {
     public CoreAuthDbContext(DbContextOptions<CoreAuthDbContext> options)
         : base(options)

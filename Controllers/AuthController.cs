@@ -41,7 +41,7 @@ public class AuthController : ControllerBase
     /// Confirms user email using a token.
     /// </summary>
     [HttpGet("confirm-email")]
-    public async Task<IActionResult> ConfirmEmail([FromQuery] string userId, [FromQuery] string token)
+    public async Task<IActionResult> ConfirmEmail([FromQuery] Guid userId, [FromQuery] string token)
     {
         var response = await _authService.ConfirmEmailAsync(userId, token);
 
@@ -69,6 +69,24 @@ public class AuthController : ControllerBase
             return Ok(response);
         }
         return Unauthorized(response);
+    }
+    
+    /// <summary>
+    /// Refreshes JWT using a valid refresh token.
+    /// </summary>
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest model)
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+
+        var response = await _authService.RefreshTokenAsync(model.RefreshToken, ipAddress);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
     }
 
 }

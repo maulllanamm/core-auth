@@ -29,7 +29,7 @@ public class RefreshToken
 
     [Required]
     [ForeignKey("Users")] 
-    public string UserId { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
 
     public ApplicationUser User { get; set; } = null!;
 

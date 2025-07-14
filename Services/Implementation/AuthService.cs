@@ -7,6 +7,7 @@ using core_auth.Model.DTO;
 using core_auth.Services.Interfaces;
 using core_auth.Settings;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -68,14 +69,14 @@ public class AuthService : IAuthService
         return ApiResponseFactory.Fail<object>("User registration failed.", errors);
     }
     
-    public async Task<ApiResponse<object>> ConfirmEmailAsync(string userId, string token)
+    public async Task<ApiResponse<object>> ConfirmEmailAsync(Guid userId, string token)
     {
-        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(token))
+        if (userId == Guid.Empty || string.IsNullOrEmpty(token))
         {
             return ApiResponseFactory.Fail<object>("Invalid email confirmation link.");
         }
 
-        var user = await _userManager.FindByIdAsync(userId);
+        var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user == null)
         {
             return ApiResponseFactory.Fail<object>($"User with ID '{userId}' not found.");
@@ -109,12 +110,15 @@ public class AuthService : IAuthService
         {
             user.LastLoginDate = DateTimeOffset.UtcNow;
             await _userManager.UpdateAsync(user);
+            await RevokeOldRefreshTokensForUser(user.Id);
 
-            var jwtToken = await GenerateJwtTokenAsync(user);
-
+            var accessToken = await GenerateJwtTokenAsync(user);
+            var refreshToken = await GenerateAndSaveRefreshTokenAsync(user.Id, ipAddress);
+            
             var loginResult = new LoginResponse
             {
-                AccessToken = jwtToken,
+                AccessToken = accessToken,
+                RefreshToken = refreshToken.Token,
                 LastLoginDate = user.LastLoginDate
             };
 
@@ -140,18 +144,15 @@ public class AuthService : IAuthService
     {
         var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email ?? ""), 
-            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.UserName ?? user.Email ?? "") 
         };
 
         var roles = await _userManager.GetRolesAsync(user);
-        foreach (var role in roles)
-        {
-            claims.Add(new Claim(ClaimTypes.Role, role));
-        }
+        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -167,5 +168,86 @@ public class AuthService : IAuthService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+    
+    public async Task<ApiResponse<LoginResponse>> RefreshTokenAsync(string token, string ipAddress)
+    {
+        var refreshToken = await _dbContext.RefreshTokens
+            .Include(rt => rt.User)
+            .FirstOrDefaultAsync(rt => rt.Token == token);
 
+        if (refreshToken == null || !refreshToken.IsActive)
+        {
+            if (refreshToken?.User != null)
+            {
+                await RevokeOldRefreshTokensForUser(refreshToken.User.Id);
+            }
+
+            return ApiResponseFactory.Fail<LoginResponse>("Invalid or expired refresh token.");
+        }
+        // Revoke old token
+        refreshToken.Revoked = DateTimeOffset.UtcNow;
+        refreshToken.ReasonRevoked = "Rotated by refresh";
+    
+        var newRefreshToken = await GenerateAndSaveRefreshTokenAsync(refreshToken.UserId, ipAddress);
+        refreshToken.ReplacedByToken = newRefreshToken.Token;
+
+        var accessToken = await GenerateJwtTokenAsync(refreshToken.User);
+
+        await _dbContext.SaveChangesAsync();
+
+        var response = new LoginResponse
+        {
+            AccessToken = accessToken,
+            RefreshToken = newRefreshToken.Token,
+        };
+
+        return ApiResponseFactory.Success(response, "Token refreshed successfully.");
+    }
+    
+    private async Task RevokeOldRefreshTokensForUser(Guid userId)
+    {
+        var tokens = await _dbContext.RefreshTokens
+            .Where(rt => rt.UserId == userId && rt.Revoked == null && rt.Expires <= DateTimeOffset.UtcNow)
+            .ToListAsync();
+
+        foreach (var token in tokens)
+        {
+            token.Revoked = DateTimeOffset.UtcNow;
+            token.ReasonRevoked = "Expired or replaced during login";
+        }
+    }
+    
+    public string GenerateRefreshTokenValue()
+    {
+        var randomNumber = new byte[64]; 
+        using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        return Convert.ToBase64String(randomNumber);
+    }
+
+    private async Task<RefreshToken> GenerateAndSaveRefreshTokenAsync(Guid userId, string ipAddress)
+    {
+        var refreshToken = new RefreshToken
+        {
+            Token = GenerateRefreshTokenValue(),
+            Expires = DateTimeOffset.UtcNow.AddDays(7), 
+            Created = DateTimeOffset.UtcNow,
+            UserId = userId,
+            RemoteIpAddress = ipAddress
+        };
+
+        _dbContext.RefreshTokens.Add(refreshToken);
+        await _dbContext.SaveChangesAsync();
+        return refreshToken;
+    }
+
+    public async Task RemoveOldRefreshTokensAsync(Guid userId)
+    {
+        var oldTokens = await _dbContext.RefreshTokens
+            .Where(rt => rt.UserId == userId && (rt.Revoked != null || rt.Expires <= DateTimeOffset.UtcNow))
+            .ToListAsync();
+
+        _dbContext.RefreshTokens.RemoveRange(oldTokens);
+        await _dbContext.SaveChangesAsync();
+    }
 }
