@@ -12,4 +12,5 @@ public interface IAuthService
     Task<ApiResponse<LoginResponse>> RefreshTokenAsync(string token, string ipAddress);
     string GenerateRefreshTokenValue();
     Task RemoveOldRefreshTokensAsync(Guid userId);
+    Task<ApiResponse<object>> SendPasswordResetEmailAsync(string email, string scheme, string host);
 }

@@ -246,4 +246,33 @@ public class AuthService : IAuthService
         _dbContext.RefreshTokens.RemoveRange(oldTokens);
         await _dbContext.SaveChangesAsync();
     }
+    
+    public async Task<ApiResponse<object>> SendPasswordResetEmailAsync(string email, string scheme, string host)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        var isConfirmed = user != null && await _userManager.IsEmailConfirmedAsync(user);
+
+        if (!isConfirmed)
+        {
+            return ApiResponseFactory.Success<object>(null, "If an account with that email exists, a password reset link has been sent.");
+        }
+
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var callbackUrl = $"{scheme}://{host}/api/auth/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
+
+        var emailSendResult = await _emailService.SendEmailAsync(new EmailRequest
+        {
+            ToEmail = user.Email!,
+            Subject = "Reset Your Password",
+            Body = $"Please reset your password by clicking here: <a href='{callbackUrl}'>link</a>",
+            IsHtml = true
+        });
+
+        if (!emailSendResult.Success)
+        {
+            return ApiResponseFactory.Fail<object>("Failed to send password reset email. Please try again later.", emailSendResult.Errors);
+        }
+
+        return ApiResponseFactory.Success<object>(null, "If an account with that email exists, a password reset link has been sent.");
+    }
 }

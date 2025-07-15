@@ -88,5 +88,16 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Requests a password reset token to be sent to the user's email.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest model)
+    {
+        var response = await _authService.SendPasswordResetEmailAsync(model.Email, HttpContext.Request.Scheme, HttpContext.Request.Host.ToUriComponent());
+
+        return Ok(response.Message);
+    }
 
 }
