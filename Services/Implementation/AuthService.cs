@@ -292,4 +292,33 @@ public class AuthService : IAuthService
 
         return ApiResponseFactory.Fail<object>("Failed to reset password.", result.Errors.Select(e => e.Description).ToList());
     }
+    
+    public async Task<ApiResponse<object>> RevokeRefreshTokenAsync(string token, string ipAddress)
+    {
+        var refreshToken = await _dbContext.RefreshTokens.SingleOrDefaultAsync(rt => rt.Token == token);
+
+        if (refreshToken == null)
+        {
+            return ApiResponseFactory.Fail<object>("Invalid refresh token.");
+        }
+
+        if (refreshToken.IsExpired)
+        {
+            return ApiResponseFactory.Fail<object>("Refresh token already expired.");
+        }
+
+        if (refreshToken.Revoked != null)
+        {
+            return ApiResponseFactory.Fail<object>("Refresh token already revoked.");
+        }
+
+        refreshToken.Revoked = DateTimeOffset.UtcNow;
+        refreshToken.ReasonRevoked = "Manual Revocation";
+        refreshToken.RemoteIpAddress = ipAddress;
+
+        await _dbContext.SaveChangesAsync();
+
+        return ApiResponseFactory.Success<object>(null, "Refresh token revoked successfully.");
+    }
+
 }

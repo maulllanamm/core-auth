@@ -1,6 +1,7 @@
 using core_auth.Model;
 using core_auth.Model.DTO;
 using core_auth.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -117,5 +118,22 @@ public class AuthController : ControllerBase
         return BadRequest(response);
     }
 
+    /// <summary>
+    /// Revokes a refresh token (e.g., on logout).
+    /// </summary>
+    [Authorize]
+    [HttpPost("revoke-token")]
+    public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequest model)
+    {
+        var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+            
+        var response = await _authService.RevokeRefreshTokenAsync(model.Token, ipAddress);
 
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
 }

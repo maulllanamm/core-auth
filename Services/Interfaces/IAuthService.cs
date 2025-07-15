@@ -14,4 +14,5 @@ public interface IAuthService
     Task RemoveOldRefreshTokensAsync(Guid userId);
     Task<ApiResponse<object>> SendPasswordResetEmailAsync(string email, string scheme, string host);
     Task<ApiResponse<object>> ResetPasswordAsync(string email, string token, string newPassword);
+    Task<ApiResponse<object>> RevokeRefreshTokenAsync(string token, string ipAddress);
 }
