@@ -136,4 +136,21 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Creates a new role. Requires administrator access.
+    /// </summary>
+    [HttpPost("roles")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
+    {
+        var response = await _authService.CreateRoleAsync(request.RoleName);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
 }

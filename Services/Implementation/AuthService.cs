@@ -20,12 +20,14 @@ public class AuthService : IAuthService
     private readonly IEmailService _emailService;
     private readonly CoreAuthDbContext _dbContext;
     private readonly JwtSettings _jwtSettings;
-    public AuthService(UserManager<ApplicationUser> userManager, IEmailService emailService, CoreAuthDbContext dbContext, SignInManager<ApplicationUser> signInManager, IOptions<JwtSettings> jwtSettings)
+    private readonly RoleManager<ApplicationRole> _roleManager;
+    public AuthService(UserManager<ApplicationUser> userManager, IEmailService emailService, CoreAuthDbContext dbContext, SignInManager<ApplicationUser> signInManager, IOptions<JwtSettings> jwtSettings, RoleManager<ApplicationRole> roleManager)
     {
         _userManager = userManager;
         _emailService = emailService;
         _dbContext = dbContext;
         _signInManager = signInManager;
+        _roleManager = roleManager;
         _jwtSettings = jwtSettings.Value;
     }
     
@@ -319,6 +321,29 @@ public class AuthService : IAuthService
         await _dbContext.SaveChangesAsync();
 
         return ApiResponseFactory.Success<object>(null, "Refresh token revoked successfully.");
+    }
+
+    public async Task<ApiResponse<object>> CreateRoleAsync(string roleName)
+    {
+        if (string.IsNullOrWhiteSpace(roleName))
+        {
+            return ApiResponseFactory.Fail<object>("Role name cannot be empty.");
+        }
+
+        if (await _roleManager.RoleExistsAsync(roleName))
+        {
+            return ApiResponseFactory.Fail<object>($"Role '{roleName}' already exists.");
+        }
+
+        var role = new ApplicationRole { Name = roleName };
+        var result = await _roleManager.CreateAsync(role);
+
+        if (result.Succeeded)
+        {
+            return ApiResponseFactory.Success<object>(null, $"Role '{roleName}' created successfully.");
+        }
+
+        return ApiResponseFactory.Fail<object>("Failed to create role.", result.Errors.Select(e => e.Description).ToList());
     }
 
 }
