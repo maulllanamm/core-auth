@@ -99,5 +99,23 @@ public class AuthController : ControllerBase
 
         return Ok(response.Message);
     }
+    
+    
+    /// <summary>
+    /// Resets the user's password using a valid token.
+    /// </summary>
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest model)
+    {
+        var response = await _authService.ResetPasswordAsync(model.Email, model.Token, model.NewPassword);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
+
 
 }

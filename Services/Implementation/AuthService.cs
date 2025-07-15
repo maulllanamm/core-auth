@@ -275,4 +275,21 @@ public class AuthService : IAuthService
 
         return ApiResponseFactory.Success<object>(null, "If an account with that email exists, a password reset link has been sent.");
     }
+    
+    public async Task<ApiResponse<object>> ResetPasswordAsync(string email, string token, string newPassword)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user == null)
+        {
+            return ApiResponseFactory.Fail<object>("User not found.");
+        }
+
+        var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+        if (result.Succeeded)
+        {
+            return ApiResponseFactory.Success<object>(null, "Password has been reset successfully.");
+        }
+
+        return ApiResponseFactory.Fail<object>("Failed to reset password.", result.Errors.Select(e => e.Description).ToList());
+    }
 }
