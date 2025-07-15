@@ -17,4 +17,5 @@ public interface IAuthService
     Task<ApiResponse<object>> RevokeRefreshTokenAsync(string token, string ipAddress);
     
     Task<ApiResponse<object>> CreateRoleAsync(string roleName);
+    Task<ApiResponse<List<RoleResponse>>> GetAllRolesAsync();
 }

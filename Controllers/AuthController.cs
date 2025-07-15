@@ -153,4 +153,22 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Retrieves all roles. Requires administrator access.
+    /// </summary>
+    [HttpGet("roles")]
+    [Authorize(Roles = "Admin")] // Only users with "Admin" role can access
+    public async Task<IActionResult> GetAllRoles()
+    {
+        var response = await _authService.GetAllRolesAsync();
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return StatusCode(500, ApiResponseFactory.Fail<List<RoleResponse>>("An unexpected error occurred."));
+    }
+
 }

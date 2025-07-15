@@ -346,4 +346,21 @@ public class AuthService : IAuthService
         return ApiResponseFactory.Fail<object>("Failed to create role.", result.Errors.Select(e => e.Description).ToList());
     }
 
+    public async Task<ApiResponse<List<RoleResponse>>> GetAllRolesAsync()
+    {
+        var roles = await _roleManager.Roles
+            .Select(r => new RoleResponse()
+            {
+                Id = r.Id,
+                Name = r.Name! 
+            })
+            .ToListAsync();
+
+        if (roles.Any())
+        {
+            return ApiResponseFactory.Success(roles, "Roles retrieved successfully.");
+        }
+
+        return ApiResponseFactory.Success(roles, "No roles found."); 
+    }
 }
