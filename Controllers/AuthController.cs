@@ -224,4 +224,26 @@ public class AuthController : ControllerBase
 
         return BadRequest(response); 
     }
+    
+    /// <summary>
+    /// Adds a claim to a specified role. Requires administrator access.
+    /// </summary>
+    [HttpPost("roles/claims")] 
+    [Authorize(Roles = "Admin")] 
+    public async Task<IActionResult> AddClaimToRole([FromBody] AddClaimToRoleRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ApiResponseFactory.Fail<object>("Validation failed.", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()));
+        }
+
+        var response = await _authService.AddClaimToRoleAsync(request.RoleId, request.ClaimType, request.ClaimValue);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
 }

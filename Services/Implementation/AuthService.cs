@@ -453,4 +453,34 @@ public class AuthService : IAuthService
 
         return ApiResponseFactory.Success(new List<string>(), $"User '{user.UserName}' has no roles assigned.");
     }
+    
+    public async Task<ApiResponse<object>> AddClaimToRoleAsync(Guid roleId, string claimType, string claimValue)
+        {
+            if (string.IsNullOrWhiteSpace(claimType) || string.IsNullOrWhiteSpace(claimValue))
+            {
+                return ApiResponseFactory.Fail<object>("Claim type and value cannot be empty.");
+            }
+
+            var role = await _roleManager.FindByIdAsync(roleId.ToString()); 
+            if (role == null)
+            {
+                return ApiResponseFactory.Fail<object>($"Role with ID '{roleId}' not found.");
+            }
+
+            var existingClaims = await _roleManager.GetClaimsAsync(role);
+            if (existingClaims.Any(c => c.Type == claimType && c.Value == claimValue))
+            {
+                return ApiResponseFactory.Fail<object>($"Claim '{claimType}:{claimValue}' already exists for role '{role.Name}'.");
+            }
+
+            var claim = new Claim(claimType, claimValue);
+            var result = await _roleManager.AddClaimAsync(role, claim);
+
+            if (result.Succeeded)
+            {
+                return ApiResponseFactory.Success<object>(null, $"Claim '{claimType}:{claimValue}' added to role '{role.Name}' successfully.");
+            }
+
+            return ApiResponseFactory.Fail<object>("Failed to add claim to role.", result.Errors.Select(e => e.Description).ToList());
+        }
 }
