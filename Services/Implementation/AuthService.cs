@@ -398,4 +398,41 @@ public class AuthService : IAuthService
         return ApiResponseFactory.Fail<object>("Failed to add user to role.", result.Errors.Select(e => e.Description).ToList());
     }
 
+    public async Task<ApiResponse<object>> RemoveUserFromRoleAsync(Guid userId, string roleName)
+    {
+        if (string.IsNullOrWhiteSpace(roleName))
+        {
+            return ApiResponseFactory.Fail<object>("Role name cannot be empty.");
+        }
+
+        var user = await _userManager.FindByIdAsync(userId.ToString()); 
+        if (user == null)
+        {
+            return ApiResponseFactory.Fail<object>($"User with ID '{userId}' not found.");
+        }
+
+        if (!await _roleManager.RoleExistsAsync(roleName))
+        {
+            return ApiResponseFactory.Fail<object>($"Role '{roleName}' does not exist.");
+        }
+
+        if (!await _userManager.IsInRoleAsync(user, roleName))
+        {
+            return ApiResponseFactory.Fail<object>($"User '{user.UserName}' is not in role '{roleName}'.");
+        }
+
+        var result = await _userManager.RemoveFromRoleAsync(user, roleName);
+
+        if (result.Succeeded)
+        {
+            // Penting: Setelah menghapus peran, SecurityStamp akan berubah.
+            // Ini akan menginvalidasi JWT lama dan memaksa user untuk login ulang
+            // agar JWT baru mereka tidak lagi mengandung klaim peran yang dihapus.
+            await _userManager.UpdateSecurityStampAsync(user);
+
+            return ApiResponseFactory.Success<object>(null, $"User '{user.UserName}' successfully removed from role '{roleName}'.");
+        }
+
+        return ApiResponseFactory.Fail<object>("Failed to remove user from role.", result.Errors.Select(e => e.Description).ToList());
+    }
 }

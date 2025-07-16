@@ -188,5 +188,23 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Removes a user from a specified role. Requires administrator access.
+    /// </summary>
+    [HttpDelete("users/roles")] 
+    [Authorize(Roles = "Admin")] 
+    public async Task<IActionResult> RemoveUserFromRole([FromBody] RemoveUserFromRoleRequest request)
+    {
+
+        var response = await _authService.RemoveUserFromRoleAsync(request.UserId, request.RoleName);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
 
 }
