@@ -171,4 +171,22 @@ public class AuthController : ControllerBase
         return StatusCode(500, ApiResponseFactory.Fail<List<RoleResponse>>("An unexpected error occurred."));
     }
 
+    /// <summary>
+    /// Adds a user to a specified role. Requires administrator access.
+    /// </summary>
+    [HttpPost("users/roles")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AddUserToRole([FromBody] AddUserToRoleRequest request)
+    {
+
+        var response = await _authService.AddUserToRoleAsync(request.UserId, request.RoleName);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
+
 }
