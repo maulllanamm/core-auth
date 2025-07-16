@@ -435,4 +435,22 @@ public class AuthService : IAuthService
 
         return ApiResponseFactory.Fail<object>("Failed to remove user from role.", result.Errors.Select(e => e.Description).ToList());
     }
+    
+    public async Task<ApiResponse<List<string>>> GetUserRolesAsync(Guid userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString()); 
+        if (user == null)
+        {
+            return ApiResponseFactory.Fail<List<string>>($"User with ID '{userId}' not found.");
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+
+        if (roles.Any())
+        {
+            return ApiResponseFactory.Success(roles.ToList(), $"Roles for user '{user.UserName}' retrieved successfully.");
+        }
+
+        return ApiResponseFactory.Success(new List<string>(), $"User '{user.UserName}' has no roles assigned.");
+    }
 }

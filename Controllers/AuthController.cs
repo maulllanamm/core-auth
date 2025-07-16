@@ -207,4 +207,21 @@ public class AuthController : ControllerBase
         return BadRequest(response);
     }
 
+    /// <summary>
+    /// Retrieves all roles for a specific user. Requires administrator access.
+    /// </summary>
+    /// <param name="userId">The ID of the user.</param>
+    [HttpGet("users/{userId}/roles")] 
+    [Authorize(Roles = "Admin")] 
+    public async Task<IActionResult> GetUserRoles([FromRoute] Guid userId) 
+    {
+        var response = await _authService.GetUserRolesAsync(userId);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response); 
+    }
 }
