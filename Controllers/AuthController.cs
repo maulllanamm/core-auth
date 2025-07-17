@@ -307,6 +307,35 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Verifies the 2FA code and enables Two-Factor Authentication for the authenticated user.
+    /// Returns recovery codes upon successful activation.
+    /// </summary>
+    /// <param name="request">The verification code from the authenticator app.</param>
+    [HttpPost("2fa/enable")] 
+    [Authorize]
+    public async Task<IActionResult> VerifyAndEnableTwoFactorAuth([FromBody] VerifyTwoFactorAuthRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(ApiResponseFactory.Fail<object>("User not authenticated."));
+        }
+        
+        if (!Guid.TryParse(userId, out Guid userGuid))
+        {
+            return BadRequest(ApiResponseFactory.Fail<TwoFactorAuthSetupDto>("Invalid User ID format."));
+        }
 
+        var response = await _authService.VerifyAndEnableTwoFactorAuthAsync(userGuid, request.VerificationCode);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
 
 }

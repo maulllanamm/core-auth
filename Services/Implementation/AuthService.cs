@@ -573,4 +573,35 @@ public class AuthService : IAuthService
         return ApiResponseFactory.Success(setupDto, "2FA setup initiated. Please configure your authenticator app.");
     }
 
+    public async Task<ApiResponse<object>> VerifyAndEnableTwoFactorAuthAsync(Guid userId, string verificationCode)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return ApiResponseFactory.Fail<object>($"User with ID '{userId}' not found.");
+        }
+
+        if (await _userManager.GetTwoFactorEnabledAsync(user))
+        {
+            return ApiResponseFactory.Fail<object>("Two-Factor Authentication is already enabled for this user.");
+        }
+
+        var isCodeValid = await _userManager.VerifyTwoFactorTokenAsync(user, _userManager.Options.Tokens.AuthenticatorTokenProvider, verificationCode);
+
+        if (!isCodeValid)
+        {
+            return ApiResponseFactory.Fail<object>("Invalid verification code. Please try again.");
+        }
+
+        var setResult = await _userManager.SetTwoFactorEnabledAsync(user, true);
+        if (!setResult.Succeeded)
+        {
+            return ApiResponseFactory.Fail<object>("Failed to enable Two-Factor Authentication.", setResult.Errors.Select(e => e.Description).ToList());
+        }
+
+        var recoveryCodes = await _userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10); // Generate 10 kode pemulihan
+
+        return ApiResponseFactory.Success<object>(new { RecoveryCodes = recoveryCodes }, "Two-Factor Authentication enabled successfully. Please save your recovery codes.");
+    }
+
 }
