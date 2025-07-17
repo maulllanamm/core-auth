@@ -246,4 +246,21 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Removes a claim from a specified role. Requires administrator access.
+    /// </summary>
+    [HttpDelete("roles/claims")] 
+    [Authorize(Roles = "Admin")] 
+    public async Task<IActionResult> RemoveClaimFromRole([FromBody] RemoveClaimFromRoleRequest request)
+    {
+        var response = await _authService.RemoveClaimFromRoleAsync(request.RoleId, request.ClaimType, request.ClaimValue);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
 }

@@ -455,32 +455,63 @@ public class AuthService : IAuthService
     }
     
     public async Task<ApiResponse<object>> AddClaimToRoleAsync(Guid roleId, string claimType, string claimValue)
+    {
+        if (string.IsNullOrWhiteSpace(claimType) || string.IsNullOrWhiteSpace(claimValue))
         {
-            if (string.IsNullOrWhiteSpace(claimType) || string.IsNullOrWhiteSpace(claimValue))
-            {
-                return ApiResponseFactory.Fail<object>("Claim type and value cannot be empty.");
-            }
-
-            var role = await _roleManager.FindByIdAsync(roleId.ToString()); 
-            if (role == null)
-            {
-                return ApiResponseFactory.Fail<object>($"Role with ID '{roleId}' not found.");
-            }
-
-            var existingClaims = await _roleManager.GetClaimsAsync(role);
-            if (existingClaims.Any(c => c.Type == claimType && c.Value == claimValue))
-            {
-                return ApiResponseFactory.Fail<object>($"Claim '{claimType}:{claimValue}' already exists for role '{role.Name}'.");
-            }
-
-            var claim = new Claim(claimType, claimValue);
-            var result = await _roleManager.AddClaimAsync(role, claim);
-
-            if (result.Succeeded)
-            {
-                return ApiResponseFactory.Success<object>(null, $"Claim '{claimType}:{claimValue}' added to role '{role.Name}' successfully.");
-            }
-
-            return ApiResponseFactory.Fail<object>("Failed to add claim to role.", result.Errors.Select(e => e.Description).ToList());
+            return ApiResponseFactory.Fail<object>("Claim type and value cannot be empty.");
         }
+
+        var role = await _roleManager.FindByIdAsync(roleId.ToString()); 
+        if (role == null)
+        {
+            return ApiResponseFactory.Fail<object>($"Role with ID '{roleId}' not found.");
+        }
+
+        var existingClaims = await _roleManager.GetClaimsAsync(role);
+        if (existingClaims.Any(c => c.Type == claimType && c.Value == claimValue))
+        {
+            return ApiResponseFactory.Fail<object>($"Claim '{claimType}:{claimValue}' already exists for role '{role.Name}'.");
+        }
+
+        var claim = new Claim(claimType, claimValue);
+        var result = await _roleManager.AddClaimAsync(role, claim);
+
+        if (result.Succeeded)
+        {
+            return ApiResponseFactory.Success<object>(null, $"Claim '{claimType}:{claimValue}' added to role '{role.Name}' successfully.");
+        }
+
+        return ApiResponseFactory.Fail<object>("Failed to add claim to role.", result.Errors.Select(e => e.Description).ToList());
+    }
+    public async Task<ApiResponse<object>> RemoveClaimFromRoleAsync(Guid roleId, string claimType, string claimValue)
+    {
+        if (string.IsNullOrWhiteSpace(claimType) || string.IsNullOrWhiteSpace(claimValue))
+        {
+            return ApiResponseFactory.Fail<object>("Claim type and value cannot be empty.");
+        }
+
+        var role = await _roleManager.FindByIdAsync(roleId.ToString());
+        if (role == null)
+        {
+            return ApiResponseFactory.Fail<object>($"Role with ID '{roleId}' not found.");
+        }
+
+        var claimToRemove = new Claim(claimType, claimValue);
+
+        var existingClaims = await _roleManager.GetClaimsAsync(role);
+        if (!existingClaims.Any(c => c.Type == claimType && c.Value == claimValue))
+        {
+            return ApiResponseFactory.Fail<object>($"Claim '{claimType}:{claimValue}' does not exist for role '{role.Name}'.");
+        }
+
+        var result = await _roleManager.RemoveClaimAsync(role, claimToRemove);
+
+        if (result.Succeeded)
+        {
+            return ApiResponseFactory.Success<object>(null, $"Claim '{claimType}:{claimValue}' removed from role '{role.Name}' successfully.");
+        }
+
+        return ApiResponseFactory.Fail<object>("Failed to remove claim from role.", result.Errors.Select(e => e.Description).ToList());
+    }
+
 }

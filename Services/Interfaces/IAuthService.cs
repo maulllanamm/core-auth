@@ -22,4 +22,5 @@ public interface IAuthService
     Task<ApiResponse<object>> RemoveUserFromRoleAsync(Guid userId, string roleName); 
     Task<ApiResponse<List<string>>> GetUserRolesAsync(Guid userId);
     Task<ApiResponse<object>> AddClaimToRoleAsync(Guid roleId, string claimType, string claimValue);
+    Task<ApiResponse<object>> RemoveClaimFromRoleAsync(Guid roleId, string claimType, string claimValue);
 }
