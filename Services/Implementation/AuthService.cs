@@ -513,5 +513,29 @@ public class AuthService : IAuthService
 
         return ApiResponseFactory.Fail<object>("Failed to remove claim from role.", result.Errors.Select(e => e.Description).ToList());
     }
+    
+    public async Task<ApiResponse<List<ClaimDto>>> GetRoleClaimsAsync(Guid roleId)
+    {
+        var role = await _roleManager.FindByIdAsync(roleId.ToString()); 
+        if (role == null)
+        {
+            return ApiResponseFactory.Fail<List<ClaimDto>>($"Role with ID '{roleId}' not found.");
+        }
+
+        var claims = await _roleManager.GetClaimsAsync(role);
+
+        var claimDtos = claims.Select(c => new ClaimDto
+        {
+            Type = c.Type,
+            Value = c.Value
+        }).ToList();
+
+        if (claimDtos.Any())
+        {
+            return ApiResponseFactory.Success(claimDtos, $"Claims for role '{role.Name}' retrieved successfully.");
+        }
+
+        return ApiResponseFactory.Success(claimDtos, $"Role '{role.Name}' has no claims assigned."); 
+    }
 
 }

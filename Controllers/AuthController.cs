@@ -263,4 +263,23 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Retrieves all claims for a specific role. Requires administrator access.
+    /// </summary>
+    /// <param name="roleId">The ID of the role.</param>
+    [HttpGet("roles/{roleId}/claims")] 
+    [Authorize(Roles = "Admin")] 
+    public async Task<IActionResult> GetRoleClaims([FromRoute] Guid roleId) 
+    {
+        var response = await _authService.GetRoleClaimsAsync(roleId);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response); 
+    }
+
 }
