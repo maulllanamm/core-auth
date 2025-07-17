@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using core_auth.Model;
 using core_auth.Model.DTO;
 using core_auth.Services.Interfaces;
@@ -281,5 +282,31 @@ public class AuthController : ControllerBase
 
         return BadRequest(response); 
     }
+    
+    [HttpGet("2fa/setup")] 
+    [Authorize]
+    public async Task<IActionResult> InitiateTwoFactorAuthSetup()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(ApiResponseFactory.Fail<TwoFactorAuthSetupDto>("User not authenticated."));
+        }
+
+        if (!Guid.TryParse(userId, out Guid userGuid))
+        {
+            return BadRequest(ApiResponseFactory.Fail<TwoFactorAuthSetupDto>("Invalid User ID format."));
+        }
+
+        var response = await _authService.InitiateTwoFactorAuthSetupAsync(userGuid.ToString()); 
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
+
 
 }

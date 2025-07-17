@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Encodings.Web;
 using core_auth.Data;
 using core_auth.Model;
 using core_auth.Model.DTO;
@@ -536,6 +537,40 @@ public class AuthService : IAuthService
         }
 
         return ApiResponseFactory.Success(claimDtos, $"Role '{role.Name}' has no claims assigned."); 
+    }
+    
+    public async Task<ApiResponse<TwoFactorAuthSetupDto>> InitiateTwoFactorAuthSetupAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return ApiResponseFactory.Fail<TwoFactorAuthSetupDto>($"User with ID '{userId}' not found.");
+        }
+
+        if (await _userManager.GetTwoFactorEnabledAsync(user))
+        {
+            return ApiResponseFactory.Fail<TwoFactorAuthSetupDto>("Two-Factor Authentication is already enabled for this user.");
+        }
+
+        var unformattedKey = await _userManager.GetAuthenticatorKeyAsync(user);
+        if (string.IsNullOrEmpty(unformattedKey))
+        {
+            await _userManager.ResetAuthenticatorKeyAsync(user);
+            unformattedKey = await _userManager.GetAuthenticatorKeyAsync(user);
+        }
+
+        var appName = _jwtSettings.Issuer ?? "YourAppName"; 
+        var email = await _userManager.GetEmailAsync(user);
+
+        var authenticatorUri = $"otpauth://totp/{UrlEncoder.Default.Encode(appName)}:{UrlEncoder.Default.Encode(email ?? user.UserName!)}?secret={unformattedKey}&issuer={UrlEncoder.Default.Encode(appName)}";
+
+        var setupDto = new TwoFactorAuthSetupDto
+        {
+            SharedKey = unformattedKey!, 
+            AuthenticatorUri = authenticatorUri
+        };
+
+        return ApiResponseFactory.Success(setupDto, "2FA setup initiated. Please configure your authenticator app.");
     }
 
 }
