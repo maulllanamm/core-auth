@@ -539,9 +539,9 @@ public class AuthService : IAuthService
         return ApiResponseFactory.Success(claimDtos, $"Role '{role.Name}' has no claims assigned."); 
     }
     
-    public async Task<ApiResponse<TwoFactorAuthSetupDto>> InitiateTwoFactorAuthSetupAsync(string userId)
+    public async Task<ApiResponse<TwoFactorAuthSetupDto>> InitiateTwoFactorAuthSetupAsync(Guid userId)
     {
-        var user = await _userManager.FindByIdAsync(userId);
+        var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user == null)
         {
             return ApiResponseFactory.Fail<TwoFactorAuthSetupDto>($"User with ID '{userId}' not found.");

@@ -25,5 +25,5 @@ public interface IAuthService
     Task<ApiResponse<object>> RemoveClaimFromRoleAsync(Guid roleId, string claimType, string claimValue);
     Task<ApiResponse<List<ClaimDto>>> GetRoleClaimsAsync(Guid roleId); 
     
-    Task<ApiResponse<TwoFactorAuthSetupDto>> InitiateTwoFactorAuthSetupAsync(string userId); 
+    Task<ApiResponse<TwoFactorAuthSetupDto>> InitiateTwoFactorAuthSetupAsync(Guid userId); 
 }

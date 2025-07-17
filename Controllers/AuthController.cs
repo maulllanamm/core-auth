@@ -298,7 +298,7 @@ public class AuthController : ControllerBase
             return BadRequest(ApiResponseFactory.Fail<TwoFactorAuthSetupDto>("Invalid User ID format."));
         }
 
-        var response = await _authService.InitiateTwoFactorAuthSetupAsync(userGuid.ToString()); 
+        var response = await _authService.InitiateTwoFactorAuthSetupAsync(userGuid); 
 
         if (response.Success)
         {
