@@ -363,5 +363,33 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    /// <summary>
+    /// Allows the authenticated user to change their password.
+    /// </summary>
+    [HttpPost("me/change-password")] 
+    [Authorize] 
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(ApiResponseFactory.Fail<object>("User not authenticated or ID not found in token."));
+        }
+
+        if (!Guid.TryParse(userId, out Guid userGuid))
+        {
+            return BadRequest(ApiResponseFactory.Fail<TwoFactorAuthSetupDto>("Invalid User ID format."));
+        }
+        
+        var response = await _authService.ChangePasswordAsync(userGuid, request);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
 
 }

@@ -626,5 +626,23 @@ public class AuthService : IAuthService
 
         return ApiResponseFactory.Success(userProfile, "User profile retrieved successfully.");
     }
+    
+    public async Task<ApiResponse<object>> ChangePasswordAsync(Guid userId, ChangePasswordRequest request)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return ApiResponseFactory.Fail<object>("User not found.");
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
+
+        if (result.Succeeded)
+        {
+            return ApiResponseFactory.Success<object>(null, "Password changed successfully. Please log in again with your new password.");
+        }
+
+        return ApiResponseFactory.Fail<object>("Failed to change password.", result.Errors.Select(e => e.Description).ToList());
+    }
 
 }

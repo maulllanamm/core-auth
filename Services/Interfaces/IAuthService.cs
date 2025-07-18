@@ -29,4 +29,5 @@ public interface IAuthService
     Task<ApiResponse<object>> VerifyAndEnableTwoFactorAuthAsync(Guid userId, string verificationCode);
     
     Task<ApiResponse<UserProfileResponse>> GetUserProfileAsync(Guid userId);
+    Task<ApiResponse<object>> ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
 }
