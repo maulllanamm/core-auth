@@ -604,6 +604,36 @@ public class AuthService : IAuthService
         return ApiResponseFactory.Success<object>(new { RecoveryCodes = recoveryCodes }, "Two-Factor Authentication enabled successfully. Please save your recovery codes.");
     }
     
+    public async Task<ApiResponse<object>> DisableTwoFactorAuthAsync(Guid userId, string password)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return ApiResponseFactory.Fail<object>("User not found.");
+        }
+
+        var passwordCheck = await _userManager.CheckPasswordAsync(user, password);
+        if (!passwordCheck)
+        {
+            return ApiResponseFactory.Fail<object>("Invalid password. Cannot disable 2FA.");
+        }
+
+        if (!await _userManager.GetTwoFactorEnabledAsync(user))
+        {
+            return ApiResponseFactory.Fail<object>("Two-Factor Authentication is not enabled for this user.");
+        }
+
+        var setResult = await _userManager.SetTwoFactorEnabledAsync(user, false);
+        if (!setResult.Succeeded)
+        {
+            return ApiResponseFactory.Fail<object>("Failed to disable Two-Factor Authentication.", setResult.Errors.Select(e => e.Description).ToList());
+        }
+
+        await _userManager.ResetAuthenticatorKeyAsync(user);
+
+        return ApiResponseFactory.Success<object>(null, "Two-Factor Authentication disabled successfully.");
+    }
+    
     
     public async Task<ApiResponse<UserProfileResponse>> GetUserProfileAsync(Guid userId)
     {

@@ -27,6 +27,7 @@ public interface IAuthService
     
     Task<ApiResponse<TwoFactorAuthSetupDto>> InitiateTwoFactorAuthSetupAsync(Guid userId);
     Task<ApiResponse<object>> VerifyAndEnableTwoFactorAuthAsync(Guid userId, string verificationCode);
+    Task<ApiResponse<object>> DisableTwoFactorAuthAsync(Guid userId, string password); 
     
     Task<ApiResponse<UserProfileResponse>> GetUserProfileAsync(Guid userId);
     Task<ApiResponse<object>> ChangePasswordAsync(Guid userId, ChangePasswordRequest request);

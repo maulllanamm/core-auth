@@ -391,5 +391,30 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    [HttpPost("me/disable-2fa")] 
+    [Authorize] 
+    public async Task<IActionResult> DisableTwoFactorAuth([FromBody] DisableTwoFactorAuthRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(ApiResponseFactory.Fail<object>("User not authenticated or ID not found in token."));
+        }
+
+        if (!Guid.TryParse(userId, out Guid userGuid))
+        {
+            return BadRequest(ApiResponseFactory.Fail<TwoFactorAuthSetupDto>("Invalid User ID format."));
+        }
+        
+        var response = await _authService.DisableTwoFactorAuthAsync(userGuid, request.Password);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response); 
+    }
 
 }
