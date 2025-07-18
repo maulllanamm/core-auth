@@ -603,5 +603,28 @@ public class AuthService : IAuthService
 
         return ApiResponseFactory.Success<object>(new { RecoveryCodes = recoveryCodes }, "Two-Factor Authentication enabled successfully. Please save your recovery codes.");
     }
+    
+    
+    public async Task<ApiResponse<UserProfileResponse>> GetUserProfileAsync(Guid userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            return ApiResponseFactory.Fail<UserProfileResponse>("User not found.");
+        }
+
+        var userProfile = new UserProfileResponse
+        {
+            Id = user.Id,
+            UserName = user.UserName!, 
+            Email = user.Email!,     
+            EmailConfirmed = user.EmailConfirmed,
+            TwoFactorEnabled = user.TwoFactorEnabled,
+            CreatedDate = user.CreatedDate,
+            LastLoginDate = user.LastLoginDate
+        };
+
+        return ApiResponseFactory.Success(userProfile, "User profile retrieved successfully.");
+    }
 
 }

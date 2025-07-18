@@ -337,5 +337,31 @@ public class AuthController : ControllerBase
 
         return BadRequest(response);
     }
+    
+    
+    [HttpGet("me")] 
+    [Authorize]
+    public async Task<IActionResult> GetCurrentUserProfile()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(ApiResponseFactory.Fail<UserProfileResponse>("User not authenticated or ID not found in token."));
+        }
+        if (!Guid.TryParse(userId, out Guid userGuid))
+        {
+            return BadRequest(ApiResponseFactory.Fail<TwoFactorAuthSetupDto>("Invalid User ID format."));
+        }
+        
+        var response = await _authService.GetUserProfileAsync(userGuid);
+
+        if (response.Success)
+        {
+            return Ok(response);
+        }
+
+        return BadRequest(response);
+    }
 
 }
