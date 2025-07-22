@@ -120,16 +120,28 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest model)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        _logger.LogInformation("Refresh token request received from IP: {IPAddress}", ipAddress);
 
-        var response = await _authService.RefreshTokenAsync(model.RefreshToken, ipAddress);
-
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.RefreshTokenAsync(model.RefreshToken, ipAddress);
 
-        return BadRequest(response);
+            if (response.Success)
+            {
+                _logger.LogInformation("Refresh token successful from IP: {IPAddress}", ipAddress);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("Refresh token failed from IP: {IPAddress} with message: {Message}", ipAddress, response.Message);
+            return BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred during token refresh from IP: {IPAddress}", ipAddress);
+            return StatusCode(500, "Internal server error.");
+        }
     }
+
     
     /// <summary>
     /// Requests a password reset token to be sent to the user's email.
