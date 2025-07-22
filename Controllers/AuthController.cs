@@ -90,15 +90,28 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
+        _logger.LogInformation("Login request received for email: {Email} from IP: {IPAddress}", request.Email, ipAddress);
 
-        var response = await _authService.LoginUserAsync(request, ipAddress);
-
-        if (response.Success)
+        try
         {
-            return Ok(response);
+            var response = await _authService.LoginUserAsync(request, ipAddress);
+
+            if (response.Success)
+            {
+                _logger.LogInformation("Login successful for email: {Email} from IP: {IPAddress}", request.Email, ipAddress);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("Login failed for email: {Email} from IP: {IPAddress} with message: {Message}", request.Email, ipAddress, response.Message);
+            return Unauthorized(response);
         }
-        return Unauthorized(response);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred during login for email: {Email} from IP: {IPAddress}", request.Email, ipAddress);
+            return StatusCode(500, "Internal server error.");
+        }
     }
+
     
     /// <summary>
     /// Refreshes JWT using a valid refresh token.
