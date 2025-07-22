@@ -13,10 +13,12 @@ namespace core_auth.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, ILogger<AuthController> logger)
     {
         _authService = authService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -25,18 +27,30 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var response = await _authService.RegisterUserAsync(
-            request,
-            HttpContext.Request.Scheme,
-            HttpContext.Request.Host.ToUriComponent()
-        );
+        _logger.LogInformation("Register request received for email: {Email}", request.Email);
 
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.RegisterUserAsync(
+                request,
+                HttpContext.Request.Scheme,
+                HttpContext.Request.Host.ToUriComponent()
+            );
 
-        return BadRequest(response);
+            if (response.Success)
+            {
+                _logger.LogInformation("Registration successful for email: {Email}", request.Email);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("Registration failed for email: {Email} with message: {Message}", request.Email, response.Message);
+            return BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred during registration for email: {Email}", request.Email);
+            return StatusCode(500, "Internal server error.");
+        }
     }
     
     /// <summary>
