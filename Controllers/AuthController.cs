@@ -59,15 +59,28 @@ public class AuthController : ControllerBase
     [HttpGet("confirm-email")]
     public async Task<IActionResult> ConfirmEmail([FromQuery] Guid userId, [FromQuery] string token)
     {
-        var response = await _authService.ConfirmEmailAsync(userId, token);
+        _logger.LogInformation("Email confirmation request received for UserId: {UserId}", userId);
 
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.ConfirmEmailAsync(userId, token);
 
-        return BadRequest(response);
+            if (response.Success)
+            {
+                _logger.LogInformation("Email confirmation successful for UserId: {UserId}", userId);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("Email confirmation failed for UserId: {UserId} with message: {Message}", userId, response.Message);
+            return BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error occurred while confirming email for UserId: {UserId}", userId);
+            return StatusCode(500, "Internal server error.");
+        }
     }
+
 
     
     /// <summary>
