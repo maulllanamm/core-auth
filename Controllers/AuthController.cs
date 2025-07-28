@@ -176,15 +176,28 @@ public class AuthController : ControllerBase
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest model)
     {
-        var response = await _authService.ResetPasswordAsync(model.Email, model.Token, model.NewPassword);
+        _logger.LogInformation("ResetPassword request received for email: {Email}", model.Email);
 
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.ResetPasswordAsync(model.Email, model.Token, model.NewPassword);
 
-        return BadRequest(response);
+            if (response.Success)
+            {
+                _logger.LogInformation("Password reset successful for email: {Email}", model.Email);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("Password reset failed for email: {Email}. Reason: {Message}", model.Email, response.Message);
+            return BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ResetPassword encountered an error for email: {Email}", model.Email);
+            return StatusCode(500, "An internal error occurred while resetting the password.");
+        }
     }
+
 
     /// <summary>
     /// Revokes a refresh token (e.g., on logout).
