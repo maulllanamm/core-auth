@@ -149,9 +149,24 @@ public class AuthController : ControllerBase
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest model)
     {
-        var response = await _authService.SendPasswordResetEmailAsync(model.Email, HttpContext.Request.Scheme, HttpContext.Request.Host.ToUriComponent());
+        _logger.LogInformation("ForgotPassword request received for email: {Email}", model.Email);
 
-        return Ok(response.Message);
+        try
+        {
+            var response = await _authService.SendPasswordResetEmailAsync(
+                model.Email,
+                HttpContext.Request.Scheme,
+                HttpContext.Request.Host.ToUriComponent()
+            );
+
+            _logger.LogInformation("ForgotPassword email sent successfully to: {Email}", model.Email);
+            return Ok(response.Message);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ForgotPassword failed for email: {Email}", model.Email);
+            return StatusCode(500, "An error occurred while processing your request.");
+        }
     }
     
     
