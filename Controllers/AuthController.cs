@@ -207,16 +207,28 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequest model)
     {
         var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
-            
-        var response = await _authService.RevokeRefreshTokenAsync(model.Token, ipAddress);
+        _logger.LogInformation("RevokeToken request received from IP: {IpAddress}, Token: {Token}", ipAddress, model.Token);
 
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.RevokeRefreshTokenAsync(model.Token, ipAddress);
 
-        return BadRequest(response);
+            if (response.Success)
+            {
+                _logger.LogInformation("RevokeToken succeeded for Token: {Token}, IP: {IpAddress}", model.Token, ipAddress);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("RevokeToken failed for Token: {Token}, IP: {IpAddress}. Reason: {Message}", model.Token, ipAddress, response.Message);
+            return BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while revoking token: {Token}, IP: {IpAddress}", model.Token, ipAddress);
+            return StatusCode(500, "An error occurred while processing the revoke request.");
+        }
     }
+
     
     /// <summary>
     /// Creates a new role. Requires administrator access.
