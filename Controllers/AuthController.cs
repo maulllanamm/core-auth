@@ -237,15 +237,29 @@ public class AuthController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
     {
-        var response = await _authService.CreateRoleAsync(request.RoleName);
+        var user = User?.Identity?.Name ?? "Unknown";
+        _logger.LogInformation("CreateRole request received by user: {User}. Role to create: {RoleName}", user, request.RoleName);
 
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.CreateRoleAsync(request.RoleName);
 
-        return BadRequest(response);
+            if (response.Success)
+            {
+                _logger.LogInformation("Role '{RoleName}' created successfully by user: {User}", request.RoleName, user);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("Failed to create role '{RoleName}' by user: {User}. Reason: {Message}", request.RoleName, user, response.Message);
+            return BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while creating role '{RoleName}' by user: {User}", request.RoleName, user);
+            return StatusCode(500, "An error occurred while creating the role.");
+        }
     }
+
     
     /// <summary>
     /// Retrieves all roles. Requires administrator access.
