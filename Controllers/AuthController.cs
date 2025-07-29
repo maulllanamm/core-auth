@@ -265,18 +265,32 @@ public class AuthController : ControllerBase
     /// Retrieves all roles. Requires administrator access.
     /// </summary>
     [HttpGet("roles")]
-    [Authorize(Roles = "Admin")] // Only users with "Admin" role can access
+    [Authorize(Roles = "Admin")] 
     public async Task<IActionResult> GetAllRoles()
     {
-        var response = await _authService.GetAllRolesAsync();
+        var user = User?.Identity?.Name ?? "Unknown";
+        _logger.LogInformation("GetAllRoles request received by user: {User}", user);
 
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.GetAllRolesAsync();
 
-        return StatusCode(500, ApiResponseFactory.Fail<List<RoleResponse>>("An unexpected error occurred."));
+            if (response.Success)
+            {
+                _logger.LogInformation("GetAllRoles succeeded. Retrieved {Count} roles by user: {User}", response.Data?.Count ?? 0, user);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("GetAllRoles failed with message: {Message} by user: {User}", response.Message, user);
+            return StatusCode(500, ApiResponseFactory.Fail<List<RoleResponse>>("An unexpected error occurred."));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception occurred in GetAllRoles by user: {User}", user);
+            return StatusCode(500, ApiResponseFactory.Fail<List<RoleResponse>>("An unexpected error occurred."));
+        }
     }
+
 
     /// <summary>
     /// Adds a user to a specified role. Requires administrator access.
