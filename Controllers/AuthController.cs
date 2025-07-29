@@ -299,16 +299,33 @@ public class AuthController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AddUserToRole([FromBody] AddUserToRoleRequest request)
     {
+        var adminUser = User?.Identity?.Name ?? "Unknown";
+        _logger.LogInformation("AddUserToRole request received by admin: {Admin}. Target UserId: {UserId}, Role: {RoleName}", 
+            adminUser, request.UserId, request.RoleName);
 
-        var response = await _authService.AddUserToRoleAsync(request.UserId, request.RoleName);
-
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.AddUserToRoleAsync(request.UserId, request.RoleName);
 
-        return BadRequest(response);
+            if (response.Success)
+            {
+                _logger.LogInformation("User {UserId} successfully added to role {RoleName} by admin: {Admin}", 
+                    request.UserId, request.RoleName, adminUser);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("Failed to add User {UserId} to role {RoleName} by admin: {Admin}. Reason: {Message}", 
+                request.UserId, request.RoleName, adminUser, response.Message);
+            return BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception occurred while adding User {UserId} to role {RoleName} by admin: {Admin}", 
+                request.UserId, request.RoleName, adminUser);
+            return StatusCode(500, "An internal error occurred while assigning the role.");
+        }
     }
+
     
     /// <summary>
     /// Removes a user from a specified role. Requires administrator access.
