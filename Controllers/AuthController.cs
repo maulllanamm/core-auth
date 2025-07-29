@@ -366,19 +366,34 @@ public class AuthController : ControllerBase
     /// Retrieves all roles for a specific user. Requires administrator access.
     /// </summary>
     /// <param name="userId">The ID of the user.</param>
-    [HttpGet("users/{userId}/roles")] 
-    [Authorize(Roles = "Admin")] 
-    public async Task<IActionResult> GetUserRoles([FromRoute] Guid userId) 
+    [HttpGet("users/{userId}/roles")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetUserRoles([FromRoute] Guid userId)
     {
-        var response = await _authService.GetUserRolesAsync(userId);
+        var adminUser = User?.Identity?.Name ?? "Unknown";
+        _logger.LogInformation("GetUserRoles request received by admin: {Admin} for userId: {UserId}", adminUser, userId);
 
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.GetUserRolesAsync(userId);
 
-        return BadRequest(response); 
+            if (response.Success)
+            {
+                _logger.LogInformation("GetUserRoles succeeded for userId: {UserId}. Roles count: {Count}", 
+                    userId, response.Data?.Count ?? 0);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("GetUserRoles failed for userId: {UserId}. Reason: {Message}", userId, response.Message);
+            return BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception occurred in GetUserRoles for userId: {UserId} by admin: {Admin}", userId, adminUser);
+            return StatusCode(500, "An internal error occurred while retrieving user roles.");
+        }
     }
+
     
     /// <summary>
     /// Adds a claim to a specified role. Requires administrator access.
