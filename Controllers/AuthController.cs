@@ -330,20 +330,37 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Removes a user from a specified role. Requires administrator access.
     /// </summary>
-    [HttpDelete("users/roles")] 
-    [Authorize(Roles = "Admin")] 
+    [HttpDelete("users/roles")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> RemoveUserFromRole([FromBody] RemoveUserFromRoleRequest request)
     {
+        var adminUser = User?.Identity?.Name ?? "Unknown";
+        _logger.LogInformation("RemoveUserFromRole request received by admin: {Admin}. Target UserId: {UserId}, Role: {RoleName}", 
+            adminUser, request.UserId, request.RoleName);
 
-        var response = await _authService.RemoveUserFromRoleAsync(request.UserId, request.RoleName);
-
-        if (response.Success)
+        try
         {
-            return Ok(response);
-        }
+            var response = await _authService.RemoveUserFromRoleAsync(request.UserId, request.RoleName);
 
-        return BadRequest(response);
+            if (response.Success)
+            {
+                _logger.LogInformation("User {UserId} successfully removed from role {RoleName} by admin: {Admin}", 
+                    request.UserId, request.RoleName, adminUser);
+                return Ok(response);
+            }
+
+            _logger.LogWarning("Failed to remove User {UserId} from role {RoleName} by admin: {Admin}. Reason: {Message}", 
+                request.UserId, request.RoleName, adminUser, response.Message);
+            return BadRequest(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception occurred while removing User {UserId} from role {RoleName} by admin: {Admin}", 
+                request.UserId, request.RoleName, adminUser);
+            return StatusCode(500, "An internal error occurred while removing the role.");
+        }
     }
+
 
     /// <summary>
     /// Retrieves all roles for a specific user. Requires administrator access.
