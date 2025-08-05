@@ -22,18 +22,22 @@ public class AuthService : IAuthService
     private readonly CoreAuthDbContext _dbContext;
     private readonly JwtSettings _jwtSettings;
     private readonly RoleManager<ApplicationRole> _roleManager;
-    public AuthService(UserManager<ApplicationUser> userManager, IEmailService emailService, CoreAuthDbContext dbContext, SignInManager<ApplicationUser> signInManager, IOptions<JwtSettings> jwtSettings, RoleManager<ApplicationRole> roleManager)
+    private readonly ILogger<AuthService> _logger;
+    public AuthService(UserManager<ApplicationUser> userManager, IEmailService emailService, CoreAuthDbContext dbContext, SignInManager<ApplicationUser> signInManager, IOptions<JwtSettings> jwtSettings, RoleManager<ApplicationRole> roleManager, ILogger<AuthService> logger)
     {
         _userManager = userManager;
         _emailService = emailService;
         _dbContext = dbContext;
         _signInManager = signInManager;
         _roleManager = roleManager;
+        _logger = logger;
         _jwtSettings = jwtSettings.Value;
     }
     
     public async Task<ApiResponse<object>> RegisterUserAsync(RegisterRequest request, string scheme, string host)
     {
+        _logger.LogInformation("User registration attempt for email: {Email}", request.Email);
+
         var user = new ApplicationUser
         {
             UserName = request.Email,
@@ -42,39 +46,52 @@ public class AuthService : IAuthService
             EmailConfirmed = false
         };
 
-        var creationResult = await _userManager.CreateAsync(user, request.Password);
-        if (!creationResult.Succeeded)
+        try
         {
-            var errors = creationResult.Errors.Select(e => e.Description).ToList();
-            return ApiResponseFactory.Fail<object>("User registration failed.", errors);
-        }
+            var creationResult = await _userManager.CreateAsync(user, request.Password);
+            if (!creationResult.Succeeded)
+            {
+                var errors = creationResult.Errors.Select(e => e.Description).ToList();
+                _logger.LogWarning("User registration failed for email: {Email}. Errors: {Errors}", request.Email, string.Join(", ", errors));
+                return ApiResponseFactory.Fail<object>("User registration failed.", errors);
+            }
 
-        var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        var confirmationLink = $"{scheme}://{host}/api/auth/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
+            _logger.LogInformation("User created successfully: {Email}, generating confirmation email...", request.Email);
 
-        var emailResult = await _emailService.SendEmailAsync(new EmailRequest
-        {
-            ToEmail = user.Email!,
-            Subject = "Confirm Your Email Address",
-            Body = $"Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a>",
-            IsHtml = true
-        });
+            var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var confirmationLink = $"{scheme}://{host}/api/auth/confirm-email?userId={user.Id}&token={Uri.EscapeDataString(token)}";
 
-        if (!emailResult.Success)
-        {
-            return ApiResponseFactory.SuccessWithWarning<object>(
+            var emailResult = await _emailService.SendEmailAsync(new EmailRequest
+            {
+                ToEmail = user.Email!,
+                Subject = "Confirm Your Email Address",
+                Body = $"Please confirm your account by clicking this link: <a href='{confirmationLink}'>link</a>",
+                IsHtml = true
+            });
+
+            if (!emailResult.Success)
+            {
+                _logger.LogWarning("Confirmation email failed to send to: {Email}. Errors: {Errors}", request.Email, string.Join(", ", emailResult.Errors));
+                return ApiResponseFactory.SuccessWithWarning<object>(
+                    null,
+                    "User registered. Failed to send confirmation email. Please request another one later.",
+                    emailResult.Errors
+                );
+            }
+
+            _logger.LogInformation("Registration and email confirmation sent successfully to: {Email}", request.Email);
+            return ApiResponseFactory.Success<object>(
                 null,
-                "User registered. Failed to send confirmation email. Please request another one later.",
-                emailResult.Errors
+                "Registration successful! Please verify your email address to complete the process."
             );
         }
-
-        return ApiResponseFactory.Success<object>(
-            null,
-            "Registration successful! Please verify your email address to complete the process."
-        );
-
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "An exception occurred during user registration for email: {Email}", request.Email);
+            throw; // atau return ApiResponseFactory.Fail<object>("Unexpected error occurred.") jika ingin tangani di sini
+        }
     }
+
 
     
     public async Task<ApiResponse<object>> ConfirmEmailAsync(Guid userId, string token)
