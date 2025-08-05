@@ -96,25 +96,43 @@ public class AuthService : IAuthService
     
     public async Task<ApiResponse<object>> ConfirmEmailAsync(Guid userId, string token)
     {
+        _logger.LogInformation("Email confirmation attempt. UserId: {UserId}", userId);
+
         if (userId == Guid.Empty || string.IsNullOrEmpty(token))
         {
+            _logger.LogWarning("Email confirmation failed. Reason: Invalid link. UserId: {UserId}", userId);
             return ApiResponseFactory.Fail<object>("Invalid email confirmation link.");
         }
 
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user == null)
         {
+            _logger.LogWarning("Email confirmation failed. Reason: User not found. UserId: {UserId}", userId);
             return ApiResponseFactory.Fail<object>($"User with ID '{userId}' not found.");
         }
-        var result = await _userManager.ConfirmEmailAsync(user, token);
 
-        if (result.Succeeded)
+        try
         {
-            return ApiResponseFactory.Success<object>(null, "Email confirmed successfully. You can now login.");
-        }
+            var result = await _userManager.ConfirmEmailAsync(user, token);
 
-        return ApiResponseFactory.Fail<object>("Error confirming your email.", result.Errors.Select(e => e.Description).ToList());
+            if (result.Succeeded)
+            {
+                _logger.LogInformation("Email successfully confirmed for UserId: {UserId}", userId);
+                return ApiResponseFactory.Success<object>(null, "Email confirmed successfully. You can now login.");
+            }
+
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            _logger.LogWarning("Email confirmation failed for UserId: {UserId}. Errors: {Errors}", userId, string.Join(", ", errors));
+
+            return ApiResponseFactory.Fail<object>("Error confirming your email.", errors);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception occurred during email confirmation for UserId: {UserId}", userId);
+            throw;
+        }
     }
+
     
     public async Task<ApiResponse<LoginResponse>> LoginUserAsync(LoginRequest request, string ipAddress)
     {
