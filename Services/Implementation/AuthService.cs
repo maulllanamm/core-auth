@@ -136,43 +136,75 @@ public class AuthService : IAuthService
     
     public async Task<ApiResponse<LoginResponse>> LoginUserAsync(LoginRequest request, string ipAddress)
     {
+        _logger.LogInformation("Login attempt for email: {Email} from IP: {IpAddress}", request.Email, ipAddress);
+
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null)
+        {
+            _logger.LogWarning("Login failed: Email not found. Email: {Email}", request.Email);
             return ApiResponseFactory.Fail<LoginResponse>("Invalid login credentials.");
+        }
 
         if (!user.EmailConfirmed)
+        {
+            _logger.LogWarning("Login failed: Email not confirmed. Email: {Email}", request.Email);
             return ApiResponseFactory.Fail<LoginResponse>("Your email has not been confirmed yet. Please check your inbox.");
+        }
 
         var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
         if (!result.Succeeded)
         {
             if (result.IsLockedOut)
+            {
+                _logger.LogWarning("Login failed: Account locked out. Email: {Email}", request.Email);
                 return ApiResponseFactory.Fail<LoginResponse>("Account locked out due to multiple failed login attempts.");
+            }
+
             if (result.IsNotAllowed)
+            {
+                _logger.LogWarning("Login failed: Not allowed to login. Email: {Email}", request.Email);
                 return ApiResponseFactory.Fail<LoginResponse>("Login not allowed. Please confirm your email or contact support.");
+            }
+
             if (result.RequiresTwoFactor)
+            {
+                _logger.LogInformation("Login requires two-factor authentication. Email: {Email}", request.Email);
                 return ApiResponseFactory.Fail<LoginResponse>("Two-factor authentication required.");
-        
+            }
+
+            _logger.LogWarning("Login failed: Invalid credentials. Email: {Email}", request.Email);
             return ApiResponseFactory.Fail<LoginResponse>("Invalid login credentials.");
         }
 
-        user.LastLoginDate = DateTimeOffset.UtcNow;
-        await _userManager.UpdateAsync(user);
-
-        await RevokeOldRefreshTokensForUser(user.Id);
-
-        var accessToken = await GenerateJwtTokenAsync(user);
-        var refreshToken = await GenerateAndSaveRefreshTokenAsync(user.Id, ipAddress);
-
-        var response = new LoginResponse
+        try
         {
-            AccessToken = accessToken,
-            RefreshToken = refreshToken.Token,
-            LastLoginDate = user.LastLoginDate
-        };
+            user.LastLoginDate = DateTimeOffset.UtcNow;
+            await _userManager.UpdateAsync(user);
 
-        return ApiResponseFactory.Success(response, "Login successful.");
+            _logger.LogInformation("Login successful for email: {Email}. Revoking old refresh tokens...", request.Email);
+
+            await RevokeOldRefreshTokensForUser(user.Id);
+
+            var accessToken = await GenerateJwtTokenAsync(user);
+            var refreshToken = await GenerateAndSaveRefreshTokenAsync(user.Id, ipAddress);
+
+            var response = new LoginResponse
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken.Token,
+                LastLoginDate = user.LastLoginDate
+            };
+
+            _logger.LogInformation("Login response generated successfully for email: {Email}", request.Email);
+            return ApiResponseFactory.Success(response, "Login successful.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception occurred during login for email: {Email}", request.Email);
+            throw; // Bisa juga return ApiResponseFactory.Fail<LoginResponse>("Unexpected error during login.")
+        }
     }
+
     
     public async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
     {
