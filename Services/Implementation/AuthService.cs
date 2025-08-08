@@ -303,15 +303,24 @@ public class AuthService : IAuthService
     private async Task RevokeOldRefreshTokensForUser(Guid userId)
     {
         var tokens = await _dbContext.RefreshTokens
-            .Where(rt => rt.UserId == userId && rt.Revoked == null && rt.Expires <= DateTimeOffset.UtcNow)
+            .Where(rt => rt.UserId == userId && rt.Revoked == null)
             .ToListAsync();
 
         foreach (var token in tokens)
         {
-            token.Revoked = DateTimeOffset.UtcNow;
-            token.ReasonRevoked = "Expired or replaced during login";
+            if (token.Expires <= DateTimeOffset.UtcNow)
+            {
+                token.Revoked = DateTimeOffset.UtcNow;
+                token.ReasonRevoked = "Expired";
+            }
+            else
+            {
+                token.Revoked = DateTimeOffset.UtcNow;
+                token.ReasonRevoked = "Replaced during login";
+            }
         }
     }
+
     
     public string GenerateRefreshTokenValue()
     {
