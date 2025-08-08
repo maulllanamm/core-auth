@@ -254,29 +254,41 @@ public class AuthService : IAuthService
     
     public async Task<ApiResponse<LoginResponse>> RefreshTokenAsync(string token, string ipAddress)
     {
+        _logger.LogInformation("Attempting to refresh access token using refresh token: {RefreshToken}", token);
+
         var refreshToken = await _dbContext.RefreshTokens
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == token);
 
-        if (refreshToken == null || !refreshToken.IsActive)
+        if (refreshToken == null)
         {
-            if (refreshToken?.User != null)
-            {
-                await RevokeOldRefreshTokensForUser(refreshToken.User.Id);
-            }
+            _logger.LogWarning("Refresh token not found: {Token}", token);
+            return ApiResponseFactory.Fail<LoginResponse>("Invalid refresh token.");
+        }
 
+        if (!refreshToken.IsActive)
+        {
+            _logger.LogWarning("Refresh token is inactive for user {UserId}. Reason: {ReasonRevoked}", 
+                refreshToken.UserId, refreshToken.ReasonRevoked);
+
+            await RevokeOldRefreshTokensForUser(refreshToken.UserId);
             return ApiResponseFactory.Fail<LoginResponse>("Invalid or expired refresh token.");
         }
-        // Revoke old token
+
+        // Revoke old refresh token
         refreshToken.Revoked = DateTimeOffset.UtcNow;
         refreshToken.ReasonRevoked = "Rotated by refresh";
     
+        // Generate new refresh token
         var newRefreshToken = await GenerateAndSaveRefreshTokenAsync(refreshToken.UserId, ipAddress);
         refreshToken.ReplacedByToken = newRefreshToken.Token;
 
+        // Generate new access token
         var accessToken = await GenerateJwtTokenAsync(refreshToken.User);
 
         await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Refresh token successfully rotated for user {UserId}", refreshToken.UserId);
 
         var response = new LoginResponse
         {
@@ -286,6 +298,7 @@ public class AuthService : IAuthService
 
         return ApiResponseFactory.Success(response, "Token refreshed successfully.");
     }
+
     
     private async Task RevokeOldRefreshTokensForUser(Guid userId)
     {
