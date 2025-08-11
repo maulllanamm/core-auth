@@ -400,19 +400,28 @@ public class AuthService : IAuthService
     
     public async Task<ApiResponse<object>> ResetPasswordAsync(string email, string token, string newPassword)
     {
+        _logger.LogInformation("ResetPasswordAsync started for email: {Email}", email);
+
         var user = await _userManager.FindByEmailAsync(email);
         if (user == null)
         {
+            _logger.LogWarning("Reset password failed: User with email {Email} not found.", email);
             return ApiResponseFactory.Fail<object>("User not found.");
         }
+
+        _logger.LogInformation("User found: {UserId}", user.Id);
 
         var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
         if (result.Succeeded)
         {
+            _logger.LogInformation("Password reset successful for user {UserId}", user.Id);
             return ApiResponseFactory.Success<object>(null, "Password has been reset successfully.");
         }
 
-        return ApiResponseFactory.Fail<object>("Failed to reset password.", result.Errors.Select(e => e.Description).ToList());
+        var errorDescriptions = result.Errors.Select(e => e.Description).ToList();
+        _logger.LogError("Password reset failed for user {UserId}. Errors: {Errors}", user.Id, string.Join(", ", errorDescriptions));
+
+        return ApiResponseFactory.Fail<object>("Failed to reset password.", errorDescriptions);
     }
     
     public async Task<ApiResponse<object>> RevokeRefreshTokenAsync(string token, string ipAddress)
