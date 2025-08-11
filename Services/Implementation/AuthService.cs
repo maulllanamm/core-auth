@@ -426,20 +426,25 @@ public class AuthService : IAuthService
     
     public async Task<ApiResponse<object>> RevokeRefreshTokenAsync(string token, string ipAddress)
     {
+        _logger.LogInformation("Starting RevokeRefreshTokenAsync for token: {Token}, IP: {IpAddress}", token, ipAddress);
+
         var refreshToken = await _dbContext.RefreshTokens.SingleOrDefaultAsync(rt => rt.Token == token);
 
         if (refreshToken == null)
         {
+            _logger.LogWarning("Revoke failed: Refresh token not found. Token: {Token}", token);
             return ApiResponseFactory.Fail<object>("Invalid refresh token.");
         }
 
         if (refreshToken.IsExpired)
         {
+            _logger.LogWarning("Revoke failed: Refresh token expired at {ExpiredAt}. Token: {Token}", refreshToken.Expires, token);
             return ApiResponseFactory.Fail<object>("Refresh token already expired.");
         }
 
         if (refreshToken.Revoked != null)
         {
+            _logger.LogWarning("Revoke failed: Refresh token already revoked at {RevokedAt}. Token: {Token}", refreshToken.Revoked, token);
             return ApiResponseFactory.Fail<object>("Refresh token already revoked.");
         }
 
@@ -447,7 +452,11 @@ public class AuthService : IAuthService
         refreshToken.ReasonRevoked = "Manual Revocation";
         refreshToken.RemoteIpAddress = ipAddress;
 
+        _logger.LogInformation("Revoking refresh token: {Token} at {RevokedAt} from IP: {IpAddress}", token, refreshToken.Revoked, ipAddress);
+
         await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Refresh token revoked successfully: {Token}", token);
 
         return ApiResponseFactory.Success<object>(null, "Refresh token revoked successfully.");
     }
