@@ -358,16 +358,24 @@ public class AuthService : IAuthService
     
     public async Task<ApiResponse<object>> SendPasswordResetEmailAsync(string email, string scheme, string host)
     {
+        _logger.LogInformation("Starting password reset process for email: {Email}", email);
+
         var user = await _userManager.FindByEmailAsync(email);
         var isConfirmed = user != null && await _userManager.IsEmailConfirmedAsync(user);
 
         if (!isConfirmed)
         {
-            return ApiResponseFactory.Success<object>(null, "If an account with that email exists, a password reset link has been sent.");
+            _logger.LogWarning("Password reset requested for unconfirmed or non-existent email: {Email}", email);
+            return ApiResponseFactory.Success<object>(null, 
+                "If an account with that email exists, a password reset link has been sent.");
         }
+
+        _logger.LogInformation("Generating password reset token for user: {UserId}", user.Id);
 
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         var callbackUrl = $"{scheme}://{host}/api/auth/reset-password?token={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email!)}";
+
+        _logger.LogDebug("Password reset callback URL generated: {CallbackUrl}", callbackUrl);
 
         var emailSendResult = await _emailService.SendEmailAsync(new EmailRequest
         {
@@ -379,10 +387,15 @@ public class AuthService : IAuthService
 
         if (!emailSendResult.Success)
         {
+            _logger.LogError("Failed to send password reset email to {Email}. Errors: {Errors}", 
+                user.Email, string.Join(", ", emailSendResult.Errors ?? new List<string>()));
             return ApiResponseFactory.Fail<object>("Failed to send password reset email. Please try again later.", emailSendResult.Errors);
         }
 
-        return ApiResponseFactory.Success<object>(null, "If an account with that email exists, a password reset link has been sent.");
+        _logger.LogInformation("Password reset email successfully sent to {Email}", user.Email);
+
+        return ApiResponseFactory.Success<object>(null, 
+            "If an account with that email exists, a password reset link has been sent.");
     }
     
     public async Task<ApiResponse<object>> ResetPasswordAsync(string email, string token, string newPassword)
